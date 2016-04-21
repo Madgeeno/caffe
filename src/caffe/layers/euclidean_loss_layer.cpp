@@ -18,6 +18,15 @@ template <typename Dtype>
 void EuclideanLossLayer<Dtype>::Forward_cpu(const vector<Blob<Dtype>*>& bottom,
     const vector<Blob<Dtype>*>& top) {
   int count = bottom[0]->count();
+  Dtype* preds = bottom[0]->mutable_cpu_data();
+  Dtype* labels = bottom[1]->mutable_cpu_data();
+  for (unsigned i = 0; i < count; ++i){
+    if (std::isnan<Dtype>(labels[i])){
+      labels[i] = Dtype(0);
+      preds[i] = Dtype(0);
+    }
+  }
+
   caffe_sub(
       count,
       bottom[0]->cpu_data(),

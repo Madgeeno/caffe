@@ -6,14 +6,28 @@
 namespace caffe {
 
 template <typename Dtype>
+__global__ void EuclideanLossForwardGPU(const int nthreads,
+  const Dtype* sub1, const Dtype* sub2, Dtype* loss)
+{
+  CUDA_KERNEL_LOOP(index, nthreads)
+  {
+    const Dtype label_value = sub2[index];
+    if (__isnan(label_value))
+      loss[index] = 0;
+    else
+      loss[index] = sub1[index] - label_value;
+  }
+}
+
+template <typename Dtype>
 void EuclideanLossLayer<Dtype>::Forward_gpu(const vector<Blob<Dtype>*>& bottom,
     const vector<Blob<Dtype>*>& top) {
   int count = bottom[0]->count();
-  caffe_gpu_sub(
-      count,
-      bottom[0]->gpu_data(),
-      bottom[1]->gpu_data(),
-      diff_.mutable_gpu_data());
+
+  EuclideanLossForwardGPU<Dtype> <<<CAFFE_GET_BLOCKS(count),
+    CAFFE_CUDA_NUM_THREADS >>>(count, bottom[0]->gpu_data(),
+    bottom[1]->gpu_data(), diff_.mutable_gpu_data());
+
   Dtype dot;
   caffe_gpu_dot(count, diff_.gpu_data(), diff_.gpu_data(), &dot);
   Dtype loss = dot / bottom[0]->num() / Dtype(2);
